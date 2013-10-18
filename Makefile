@@ -16,7 +16,7 @@ FREERTOS_PORT_INC = $(FREERTOS_SRC)/portable/GCC/ARM_$(ARCH)/
 
 all: main.bin
 
-main.bin: test-romfs.o main.c
+main.bin: test-romfs.o main.c str_func.c str_func.h fio.c shell.c shell.h
 	$(CROSS_COMPILE)gcc \
 		-I. -I$(FREERTOS_INC) -I$(FREERTOS_PORT_INC) \
 		-I$(CODEBASE)/libraries/CMSIS/CM3/CoreSupport \
@@ -53,7 +53,9 @@ main.bin: test-romfs.o main.c
 		osdebug.c \
 		string-util.c \
 		\
-		main.c
+		main.c \
+		str_func.c \
+		shell.c
 	$(CROSS_COMPILE)ld -Tmain.ld -nostartfiles -o main.elf \
 		core_cm3.o \
 		system_stm32f10x.o \
@@ -73,6 +75,8 @@ main.bin: test-romfs.o main.c
 		\
 		osdebug.o \
 		string-util.o \
+		str_func.o \
+		shell.o \
 		\
 		main.o
 	$(CROSS_COMPILE)objcopy -Obinary main.elf main.bin
