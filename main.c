@@ -17,7 +17,10 @@ extern const char _sromfs;
 static void setup_hardware();
 
 volatile xSemaphoreHandle serial_tx_wait_sem = NULL;
+volatile xSemaphoreHandle serial_rx_queue = NULL;
+char ch;
 
+//volatile xSemaphoreHandle old_test;
 
 /* IRQ handler to handle USART2 interruptss (both transmit and receive
  * interrupts). */
@@ -35,6 +38,13 @@ void USART2_IRQHandler()
 		/* Diables the transmit interrupt. */
 		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
 		/* If this interrupt is for a receive... */
+	}
+	else if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
+		ch = USART_ReceiveData(USART2); 
+
+		if(!xQueueSendToBackFromISR(serial_rx_queue, &ch, &xHigherPriorityTaskWoken)){
+			while(1);
+		}
 	}
 	else {
 		/* Only transmit and receive interrupts should be enabled.
@@ -63,21 +73,30 @@ void send_byte(char ch)
 	USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
 }
 
-void read_romfs_task(void *pvParameters)
+char recv_byte(){
+	USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
+	char msg;
+	while(!xQueueReceive(serial_rx_queue, &msg, portMAX_DELAY));
+
+	return msg;
+}
+
+
+void shell_task(void *pvParameters)
 {
 	char buf[128];
-	size_t count;
-	int fd = fs_open("/romfs/test.txt", 0, O_RDONLY);
-	do {
-		//Read from /romfs/test.txt to buffer
-		count = fio_read(fd, buf, sizeof(buf));
-		
-		//Write buffer to fd 1 (stdout, through uart)
-		fio_write(1, buf, count);
-	} while (count);
-	
-	while (1);
+	char buf2[]="\r\n>";
+
+	while(1){
+		fio_write(1, buf2, sizeof(buf2));
+		int count = fio_read(0, buf, 127);
+		check_keyword(buf,count);
+	}
 }
+
+
+
+
 
 int main()
 {
@@ -93,10 +112,10 @@ int main()
 	/* Create the queue used by the serial task.  Messages for write to
 	 * the RS232. */
 	vSemaphoreCreateBinary(serial_tx_wait_sem);
+	serial_rx_queue = xQueueCreate(1, sizeof(ch));
 
-	/* Create a task to output text read from romfs. */
-	xTaskCreate(read_romfs_task,
-	            (signed portCHAR *) "Read romfs",
+	xTaskCreate(shell_task,
+	            (signed portCHAR *) "Implement shell",
 	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	/* Start running the tasks. */
