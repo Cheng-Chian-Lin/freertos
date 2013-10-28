@@ -41,4 +41,6 @@ void fio_set_opaque(int fd, void * opaque);
 
 void register_devfs();
 
+size_t fio_printf(int fd, const char *format, ...);
+
 #endif
