@@ -10,3 +10,4 @@ int strncmp(const char *a, const char *b, size_t n);
 size_t strlen(const char *s) __attribute__ ((naked));
 size_t strlen(const char *s);
 
+char *itoa(const char *numbox, int num, unsigned int base);
