@@ -6,6 +6,8 @@
 #include "filesystem.h"
 #include "osdebug.h"
 #include "hash-djb2.h"
+#include <stdarg.h>
+#include "str_func.h"
 
 static struct fddef_t fio_fds[MAX_FDS];
 
@@ -201,4 +203,44 @@ static int devfs_open(void * opaque, const char * path, int flags, int mode) {
 void register_devfs() {
     DBGOUT("Registering devfs.\r\n");
     register_fs("dev", devfs_open, NULL);
+}
+
+
+size_t fio_printf(int fd, const char *format, ...){
+        int i,count=0;
+
+
+        va_list(v1);
+        va_start(v1, format);
+
+
+        int tmpint;
+        char *tmpcharp;
+        
+        for(i=0; format[i]; ++i){
+                if(format[i]=='%'){
+                        switch(format[i+1]){
+                                case '%':
+                                        send_byte('%'); break;
+                                case 'd':
+                                case 'x':
+                                case 'X':
+                                        tmpint = va_arg(v1, int);
+                                        tmpcharp = itoa(format[i+1]=='x'?"0123456789abcdef":"0123456789ABCDEF", tmpint, format[i+1]=='d'?10: 16);
+                                        fio_write(fd, tmpcharp, strlen(tmpcharp));
+                                        break;
+                                case 's':
+                                        tmpcharp = va_arg(v1, char *);
+                                        fio_write(fd, tmpcharp, strlen(tmpcharp));
+                                        break;
+                        }
+                        /* Skip the next character */
+                        ++i;
+                }else
+                        fio_write(fd, format+i, 1);
+        }
+
+
+        va_end(v1);
+        return count;
 }
